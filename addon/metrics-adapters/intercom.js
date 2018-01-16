@@ -14,6 +14,22 @@ const {
 } = objectTransforms;
 const assign = Ember.assign || Ember.merge;
 
+function detectIE() {
+  if (!window || !window.navigator) {
+    return false;
+  }
+  let ua = window.navigator.userAgent;
+
+  let trident = ua.indexOf('Trident/');
+  if (trident > 0) {
+    // ie11
+    return true;
+  }
+
+  // other browser
+  return false;
+}
+
 export default BaseAdapter.extend({
   booted: false,
 
@@ -49,7 +65,7 @@ export default BaseAdapter.extend({
     assert(`[ember-metrics] You must pass \`distinctId\` or \`email\` to \`identify()\` when using the ${this.toString()} adapter`, props.email || props.user_id);
 
     const method = this.booted ? 'update' : 'boot';
-    if (canUseDOM) {
+    if (canUseDOM && !detectIE()) {
       window.Intercom(method, props);
       this.booted = true;
     }
@@ -60,7 +76,7 @@ export default BaseAdapter.extend({
     const { event } = compactedOptions;
     const props = without(compactedOptions, 'event');
 
-    if (canUseDOM) {
+    if (canUseDOM && !detectIE()) {
       window.Intercom('trackEvent', event, props);
     }
   },
@@ -80,7 +96,7 @@ export default BaseAdapter.extend({
 
     props.app_id = appId;
 
-    if (canUseDOM) {
+    if (canUseDOM && !detectIE()) {
       window.Intercom('boot', props);
       this.booted = true;
     }
