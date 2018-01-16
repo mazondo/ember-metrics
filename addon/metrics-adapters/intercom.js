@@ -70,7 +70,7 @@ export default BaseAdapter.extend({
 
     props.app_id = appId;
 
-    if (canUseDOM) {
+    if (canUseDOM && !detectIE()) {
       window.Intercom('boot', props);
       this.booted = true;
     }
