@@ -85,6 +85,15 @@ export default BaseAdapter.extend({
     return pageEvent;
   },
 
+  trackData(options = {}) {
+    const compactedOptions = compact(options);
+    const dataLayer = get(this, 'dataLayer');
+
+    if (canUseDOM) {
+      window[dataLayer].push(compactedOptions);
+    }
+  },
+
   willDestroy() {
     removeFromDOM('script[src*="gtm.js"]');
 
