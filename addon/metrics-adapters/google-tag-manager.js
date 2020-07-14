@@ -1,17 +1,11 @@
-import Ember from 'ember';
-import canUseDOM from '../utils/can-use-dom';
+import { assign } from '@ember/polyfills';
+import { assert } from '@ember/debug';
+import { getWithDefault, set, get } from '@ember/object';
+import { capitalize } from '@ember/string';
 import objectTransforms from '../utils/object-transforms';
+import removeFromDOM from '../utils/remove-from-dom';
 import BaseAdapter from './base';
 
-const {
-  assert,
-  get,
-  set,
-  $,
-  getWithDefault,
-  String: { capitalize }
-} = Ember;
-const assign = Ember.assign || Ember.merge;
 const {
   compact
 } = objectTransforms;
@@ -33,20 +27,30 @@ export default BaseAdapter.extend({
 
     set(this, 'dataLayer', dataLayer);
 
-    if (canUseDOM) {
-      (function(w, d, s, l, i) {
-        w[l] = w[l] || [];
-        w[l].push({
-          'gtm.start': new Date().getTime(),
-          event: 'gtm.js'
-        });
-        var f = d.getElementsByTagName(s)[0],
-            j = d.createElement(s),
-            dl = l !== 'dataLayer' ? '&l=' + l : '';
-        j.async = true;
-        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl + envParamsString;
-        f.parentNode.insertBefore(j, f);
-      })(window, document, 'script', get(this, 'dataLayer'), id);
+    (function(w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s),
+          dl = l !== 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl + envParamsString;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', get(this, 'dataLayer'), id);
+  },
+
+  identify(options = {}) {
+    const compactedOptions = compact(options);
+    const dataLayer = get(this, 'dataLayer');
+    const userId = get(this, 'userId');
+    const { distinctId } = compactedOptions;
+
+    if (canUseDOM && userId !== distinctId) {
+      set(this, 'userId', distinctId);
+      window[dataLayer].push({'userId': distinctId});
     }
   },
 
@@ -74,9 +78,7 @@ export default BaseAdapter.extend({
       gtmEvent[`event${capitalizedKey}`] = compactedOptions[key];
     }
 
-    if (canUseDOM) {
-      window[dataLayer].push(gtmEvent);
-    }
+    window[dataLayer].push(gtmEvent);
 
     return gtmEvent;
   },
@@ -90,17 +92,23 @@ export default BaseAdapter.extend({
 
     const pageEvent = assign(sendEvent, compactedOptions);
 
-    if (canUseDOM) {
-      window[dataLayer].push(pageEvent);
-    }
+    window[dataLayer].push(pageEvent);
 
     return pageEvent;
   },
 
-  willDestroy() {
+  trackData(options = {}) {
+    const compactedOptions = compact(options);
+    const dataLayer = get(this, 'dataLayer');
+
     if (canUseDOM) {
-      $('script[src*="gtm.js"]').remove();
-      delete window.dataLayer;
+      window[dataLayer].push(compactedOptions);
     }
+  },
+
+  willDestroy() {
+    removeFromDOM('script[src*="gtm.js"]');
+
+    delete window.dataLayer;
   }
 });

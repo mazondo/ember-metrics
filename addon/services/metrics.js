@@ -1,19 +1,11 @@
-import Ember from 'ember';
-
-const {
-  Service,
-  getWithDefault,
-  assert,
-  get,
-  set,
-  copy,
-  makeArray,
-  A: emberArray,
-  String: { dasherize },
-  getOwner
-} = Ember;
+import { assign } from '@ember/polyfills';
+import Service from '@ember/service';
+import { assert } from '@ember/debug';
+import { set, get, getWithDefault } from '@ember/object';
+import { A as emberArray, makeArray } from '@ember/array';
+import { dasherize } from '@ember/string';
+import { getOwner } from '@ember/application';
 const { keys } = Object;
-const assign = Ember.assign || Ember.merge;
 
 export default Service.extend({
   /**
@@ -100,10 +92,13 @@ export default Service.extend({
     adapterOptions
       .filter((adapterOption) => this._filterEnvironments(adapterOption, appEnvironment))
       .forEach((adapterOption) => {
-        const { name } = adapterOption;
-        const adapter = cachedAdapters[name] ? cachedAdapters[name] : this._activateAdapter(adapterOption);
+        const { name, config } = adapterOption;
+        const adapterClass = this._lookupAdapter(name);
 
-        set(activatedAdapters, name, adapter);
+        if (typeof FastBoot === 'undefined' || get(adapterClass, 'supportsFastBoot')) {
+          const adapter = cachedAdapters[name] || this._activateAdapter({ adapterClass, config });
+          set(activatedAdapters, name, adapter);
+        }
       });
 
     return set(this, '_adapters', activatedAdapters);
@@ -123,7 +118,7 @@ export default Service.extend({
     const cachedAdapters = get(this, '_adapters');
     const allAdapterNames = keys(cachedAdapters);
     const [selectedAdapterNames, options] = args.length > 1 ? [makeArray(args[0]), args[1]] : [allAdapterNames, args[0]];
-    const context = copy(get(this, 'context'));
+    const context = assign({}, get(this, 'context'));
     const mergedOptions = assign(context, options);
 
     selectedAdapterNames
@@ -147,18 +142,15 @@ export default Service.extend({
   },
 
   /**
-   * Instantiates an adapter if one is found.
+   * Instantiates an adapter.
    *
    * @method _activateAdapter
    * @param {Object}
    * @private
    * @return {Adapter}
    */
-  _activateAdapter({ name, config } = {}) {
-    const Adapter = this._lookupAdapter(name);
-    assert(`[ember-metrics] Could not find metrics adapter ${name}.`, Adapter);
-
-    return Adapter.create(getOwner(this).ownerInjection(), { this: this, config });
+  _activateAdapter({ adapterClass, config }) {
+    return adapterClass.create(getOwner(this).ownerInjection(), { this: this, config });
   },
 
   /**
@@ -177,7 +169,10 @@ export default Service.extend({
     const availableAdapter = getOwner(this).lookup(`ember-metrics@metrics-adapter:${dasherizedAdapterName}`);
     const localAdapter = getOwner(this).lookup(`metrics-adapter:${dasherizedAdapterName}`);
 
-    return localAdapter ? localAdapter : availableAdapter;
+    const adapter = localAdapter || availableAdapter;
+    assert(`[ember-metrics] Could not find metrics adapter ${adapterName}.`, adapter);
+
+    return adapter;
   },
 
   /**

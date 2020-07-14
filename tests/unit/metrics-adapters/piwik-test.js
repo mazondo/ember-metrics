@@ -5,9 +5,9 @@ let sandbox, config;
 
 moduleFor('ember-metrics@metrics-adapter:piwik', 'piwik adapter', {
   beforeEach() {
-    sandbox = sinon.sandbox.create();
+    sandbox = sinon.createSandbox();
     config = {
-      piwikUrl: "http://my-cool-url.com",
+      piwikUrl: '/assets',
       siteId: 42
     };
   },
