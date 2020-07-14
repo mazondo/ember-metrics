@@ -34,11 +34,11 @@ export default BaseAdapter.extend({
     const compactedOptions = compact(options);
     const { distinctId } = compactedOptions;
     const props = without(compactedOptions, 'distinctId');
+
     props.app_id = appId;
     if (distinctId) {
       props.user_id = distinctId;
     }
-
 
     assert(`[ember-metrics] You must pass \`distinctId\` or \`email\` to \`identify()\` when using the ${this.toString()} adapter`, props.email || props.user_id);
 
@@ -60,20 +60,6 @@ export default BaseAdapter.extend({
     const mergedOptions = assign(event, options);
 
     this.trackEvent(mergedOptions);
-  },
-
-  boot(options = {}) {
-    if (this.booted) { return; }
-
-    const { appId } = get(this, 'config');
-    const props = compact(options);
-
-    props.app_id = appId;
-
-    if (canUseDOM && !detectIE()) {
-      window.Intercom('boot', props);
-      this.booted = true;
-    }
   },
 
   willDestroy() {
